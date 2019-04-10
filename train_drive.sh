@@ -1,0 +1,3 @@
+#CUDA_VISIBLE_DEVICES=1 python main.py --backbone resnet --lr 0.01 --workers 2 --epochs 100 --batch-size 128 --checkname deeplab-resnet --eval-interval 1 --dataset drive --sync-bn False --gpu-ids 0 --loss-type bce
+#CUDA_VISIBLE_DEVICES=1 python main.py --lr 0.01 --workers 2 --epochs 100 --batch-size 128 --checkname unet --eval-interval 1 --dataset drive --sync-bn False --gpu-ids 5 --loss-type bce --resume run/drive/unet/experiment_0/checkpoint_21.pth.tar
+CUDA_VISIBLE_DEVICES=0 python main.py --lr 0.05 --workers 2 --epochs 200 --batch-size 128 --checkname unet --eval-interval 1 --dataset drive --sync-bn False --gpu-ids 0 --loss-type mIou

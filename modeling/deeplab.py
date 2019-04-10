@@ -18,9 +18,9 @@ class DeepLab(nn.Module):
         else:
             BatchNorm = nn.BatchNorm2d
 
-        self.backbone = build_backbone(backbone, output_stride, BatchNorm)
+        self.backbone = build_backbone(backbone, output_stride, BatchNorm)#downsample
         self.aspp = build_aspp(backbone, output_stride, BatchNorm)
-        self.decoder = build_decoder(num_classes, backbone, BatchNorm)
+        self.decoder = build_decoder(num_classes, backbone, BatchNorm)#upsample
 
         if freeze_bn:
             self.freeze_bn()
@@ -62,9 +62,9 @@ class DeepLab(nn.Module):
 
 
 if __name__ == "__main__":
-    model = DeepLab(backbone='mobilenet', output_stride=16)
+    model = DeepLab(backbone='resnet', output_stride=16, num_classes=2)
     model.eval()
-    input = torch.rand(1, 3, 513, 513)
+    input = torch.rand(2, 3, 513, 513)
     output = model(input)
     print(output.size())
 

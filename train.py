@@ -7,6 +7,7 @@ from mypath import Path
 from dataloaders import make_data_loader
 from modeling.sync_batchnorm.replicate import patch_replication_callback
 from modeling.deeplab import *
+from modeling.unet import *
 from utils.loss import SegmentationLosses
 from utils.calculate_weights import calculate_weigths_labels
 from utils.lr_scheduler import LR_Scheduler
@@ -30,18 +31,21 @@ class Trainer(object):
         self.train_loader, self.val_loader, self.test_loader, self.nclass = make_data_loader(args, **kwargs)
 
         # Define network
-        model = DeepLab(num_classes=self.nclass,
-                        backbone=args.backbone,
-                        output_stride=args.out_stride,
-                        sync_bn=args.sync_bn,
-                        freeze_bn=args.freeze_bn)
+        # model = DeepLab(num_classes=self.nclass,
+        #                 backbone=args.backbone,
+        #                 output_stride=args.out_stride,
+        #                 sync_bn=args.sync_bn,
+        #                 freeze_bn=args.freeze_bn)
+        model = U_Net()
+        # train_params = [{'params': model.get_1x_lr_params(), 'lr': args.lr},
+        #                 {'params': model.get_10x_lr_params(), 'lr': args.lr * 10}]
 
-        train_params = [{'params': model.get_1x_lr_params(), 'lr': args.lr},
-                        {'params': model.get_10x_lr_params(), 'lr': args.lr * 10}]
+        #model = U_Net(output_ch=self.nclass)
 
         # Define Optimizer
-        optimizer = torch.optim.SGD(train_params, momentum=args.momentum,
+        optimizer = torch.optim.SGD(model.parameters(),lr=args.lr,momentum=args.momentum,
                                     weight_decay=args.weight_decay, nesterov=args.nesterov)
+
 
         # Define Criterion
         # whether to use class balanced weights
@@ -65,7 +69,8 @@ class Trainer(object):
 
         # Using cuda
         if args.cuda:
-            self.model = torch.nn.DataParallel(self.model, device_ids=self.args.gpu_ids)
+            #self.model = torch.nn.DataParallel(self.model, device_ids=self.args.gpu_ids)
+            self.model = torch.nn.DataParallel(self.model)
             patch_replication_callback(self.model)
             self.model = self.model.cuda()
 
@@ -97,11 +102,15 @@ class Trainer(object):
         num_img_tr = len(self.train_loader)
         for i, sample in enumerate(tbar):
             image, target = sample['image'], sample['label']
+            #print(image.shape,target.shape)
             if self.args.cuda:
                 image, target = image.cuda(), target.cuda()
             self.scheduler(self.optimizer, i, epoch, self.best_pred)
             self.optimizer.zero_grad()
+
             output = self.model(image)
+            #print('-->:',output.shape)
+
             loss = self.criterion(output, target)
             loss.backward()
             self.optimizer.step()
@@ -112,9 +121,12 @@ class Trainer(object):
             # Show 10 * 3 inference results each epoch
             if i % (num_img_tr // 10) == 0:
                 global_step = i + num_img_tr * epoch
+                #print('owo:',image.shape, target.shape, output.shape)
+                #print('qaq:',target[:3].shape)
                 self.summary.visualize_image(self.writer, self.args.dataset, image, target, output, global_step)
 
         self.writer.add_scalar('train/total_loss_epoch', train_loss, epoch)
+        self.writer.add_scalar('train/loss',self.optimizer.param_groups[0]['lr'],epoch)
         print('[Epoch: %d, numImages: %5d]' % (epoch, i * self.args.batch_size + image.data.shape[0]))
         print('Loss: %.3f' % train_loss)
 
@@ -136,16 +148,21 @@ class Trainer(object):
         test_loss = 0.0
         for i, sample in enumerate(tbar):
             image, target = sample['image'], sample['label']
+            #print('val:',image.shape,target.shape)
             if self.args.cuda:
                 image, target = image.cuda(), target.cuda()
             with torch.no_grad():
                 output = self.model(image)
+                #print('val_out:',output.shape)
             loss = self.criterion(output, target)
             test_loss += loss.item()
             tbar.set_description('Test loss: %.3f' % (test_loss / (i + 1)))
             pred = output.data.cpu().numpy()
             target = target.cpu().numpy()
             pred = np.argmax(pred, axis=1)
+            #for retina dataset, target is 4 dims
+            if target.ndim == 4:
+                target = target[:,1,:,:]
             # Add batch sample into evaluator
             self.evaluator.add_batch(target, pred)
 
@@ -165,15 +182,18 @@ class Trainer(object):
         print('Loss: %.3f' % test_loss)
 
         new_pred = mIoU
-        if new_pred > self.best_pred:
-            is_best = True
-            self.best_pred = new_pred
+        is_best = new_pred > self.best_pred
+        if epoch>=19 and (epoch+1)%20 == 0:
+            if is_best:
+                self.best_pred = new_pred
             self.saver.save_checkpoint({
                 'epoch': epoch + 1,
                 'state_dict': self.model.module.state_dict(),
                 'optimizer': self.optimizer.state_dict(),
                 'best_pred': self.best_pred,
             }, is_best)
+
+
 
 def main():
     parser = argparse.ArgumentParser(description="PyTorch DeeplabV3Plus Training")
@@ -183,7 +203,7 @@ def main():
     parser.add_argument('--out-stride', type=int, default=16,
                         help='network output stride (default: 8)')
     parser.add_argument('--dataset', type=str, default='pascal',
-                        choices=['pascal', 'coco', 'cityscapes'],
+                        choices=['pascal', 'coco', 'cityscapes','drive'],
                         help='dataset name (default: pascal)')
     parser.add_argument('--use-sbd', action='store_true', default=True,
                         help='whether to use SBD dataset (default: True)')
@@ -198,7 +218,7 @@ def main():
     parser.add_argument('--freeze-bn', type=bool, default=False,
                         help='whether to freeze bn parameters (default: False)')
     parser.add_argument('--loss-type', type=str, default='ce',
-                        choices=['ce', 'focal'],
+                        choices=['ce', 'focal', 'bce'],
                         help='loss func type (default: ce)')
     # training hyper params
     parser.add_argument('--epochs', type=int, default=None, metavar='N',
@@ -267,6 +287,7 @@ def main():
             'coco': 30,
             'cityscapes': 200,
             'pascal': 50,
+            'drive': 100,
         }
         args.epochs = epoches[args.dataset.lower()]
 
@@ -281,6 +302,7 @@ def main():
             'coco': 0.1,
             'cityscapes': 0.01,
             'pascal': 0.007,
+            'drive': 0.001
         }
         args.lr = lrs[args.dataset.lower()] / (4 * len(args.gpu_ids)) * args.batch_size
 
@@ -293,7 +315,7 @@ def main():
     print('Starting Epoch:', trainer.args.start_epoch)
     print('Total Epoches:', trainer.args.epochs)
     for epoch in range(trainer.args.start_epoch, trainer.args.epochs):
-        trainer.training(epoch)
+        trainer.training(epoch)#training
         if not trainer.args.no_val and epoch % args.eval_interval == (args.eval_interval - 1):
             trainer.validation(epoch)
 

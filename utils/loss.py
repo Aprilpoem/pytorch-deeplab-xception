@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from .iou_loss import _mIoULoss,to_one_hot
 
 class SegmentationLosses(object):
     def __init__(self, weight=None, size_average=True, batch_average=True, ignore_index=255, cuda=False):
@@ -15,6 +16,10 @@ class SegmentationLosses(object):
             return self.CrossEntropyLoss
         elif mode == 'focal':
             return self.FocalLoss
+        elif mode == 'bce':
+            return self.BCELoss
+        elif mode == 'mIou':
+            return self.mIouLoss
         else:
             raise NotImplementedError
 
@@ -27,11 +32,35 @@ class SegmentationLosses(object):
 
         loss = criterion(logit, target.long())
 
+        # if c == 2:
+        #     loss = criterion(logit.reshape(n,-1),target.reshape(n,-1).long())
         if self.batch_average:
             loss /= n
 
         return loss
+    
+    def BCELoss(self,logit,target):
+        criterion = nn.BCELoss(weight=self.weight,reduction='mean')
+        if self.cuda:
+            criterion = criterion.cuda()
+        n, c, h, w = logit.size()
+        pred = torch.sigmoid(logit)
+        if target.shape[1] != pred.shape[1]:
+            tmp = torch.where(target == 1, torch.full_like(target, 0), torch.full_like(target, 1))
+            target = torch.cat((tmp,target),1)
 
+        assert target.shape[1] == pred.shape[1]
+
+        #print(pred.shape,target.shape)
+        preds = pred.reshape(n, -1)
+        target = target.reshape(n, -1)
+        loss = criterion(preds,target.float())
+        
+        # if self.batch_average:
+        #     loss /= n
+        
+        return loss
+        
     def FocalLoss(self, logit, target, gamma=2, alpha=0.5):
         n, c, h, w = logit.size()
         criterion = nn.CrossEntropyLoss(weight=self.weight, ignore_index=self.ignore_index,
@@ -49,6 +78,19 @@ class SegmentationLosses(object):
             loss /= n
 
         return loss
+
+    def mIouLoss(self, logit, target ):
+        criterion = _mIoULoss()
+        if self.cuda:
+            criterion = criterion.cuda()
+        if len(target.size()) == 3:
+            target = to_one_hot(target,logit.shape[1])
+        assert target.shape == logit.shape
+
+        loss = criterion(logit,target)
+        return loss
+
+
 
 if __name__ == "__main__":
     loss = SegmentationLosses(cuda=True)

@@ -3,6 +3,21 @@ import numpy as np
 import torch
 
 def decode_seg_map_sequence(label_masks, dataset='pascal'):
+    # if dataset == 'drive':
+    #     gray_masks = []
+    #     #print('pred:',label_masks.shape)
+    #     for label_mask in label_masks:
+    #         label_mask = (label_mask*255).astype(np.uint8)
+    #         #print('mask:',label_mask.shape)
+    #         #label_mask = torch.from_numpy(label_mask)
+    #         #label_mask = label_mask.transpose([0,3,1,2])
+    #         gray_masks.append(label_mask)
+    #     gray_masks = torch.from_numpy(np.array(gray_masks))
+    #     #print('---',gray_masks.shape)
+    #     #gray_masks = torch.unsqueeze(gray_masks,1)
+    #     #print(gray_masks.shape)
+    #     return gray_masks
+
     rgb_masks = []
     for label_mask in label_masks:
         rgb_mask = decode_segmap(label_mask, dataset)
@@ -27,6 +42,9 @@ def decode_segmap(label_mask, dataset, plot=False):
     elif dataset == 'cityscapes':
         n_classes = 19
         label_colours = get_cityscapes_labels()
+    elif dataset == 'drive':
+        n_classes = 2
+        label_colours = get_retina_labels()
     else:
         raise NotImplementedError
 
@@ -87,6 +105,8 @@ def get_cityscapes_labels():
         [0, 0, 230],
         [119, 11, 32]])
 
+def get_retina_labels():
+    return np.array([[0,0,0],[255,255,255]])
 
 def get_pascal_labels():
     """Load the mapping that associates pascal classes with label colors
