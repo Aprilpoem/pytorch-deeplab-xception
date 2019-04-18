@@ -12,7 +12,7 @@ class Evaluator(object):
 
     def Pixel_Accuracy_Class(self):
         Acc = np.diag(self.confusion_matrix) / self.confusion_matrix.sum(axis=1)
-        Acc = np.nanmean(Acc)
+        #Acc = np.nanmean(Acc)
         return Acc
 
     def Mean_Intersection_over_Union(self):
@@ -36,6 +36,7 @@ class Evaluator(object):
         label = self.num_class * gt_image[mask].astype('int') + pre_image[mask]
         count = np.bincount(label, minlength=self.num_class**2)
         confusion_matrix = count.reshape(self.num_class, self.num_class)
+        #print(confusion_matrix)
         return confusion_matrix
 
     def add_batch(self, gt_image, pre_image):

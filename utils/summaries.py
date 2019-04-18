@@ -23,6 +23,6 @@ class TensorboardSummary(object):
         #gt label
         #if dataset == 'drive':
 
-        grid_image = make_grid(decode_seg_map_sequence(torch.squeeze(target[:3,1,:,:], 1).detach().cpu().numpy(),
+        grid_image = make_grid(decode_seg_map_sequence(torch.squeeze(target[:3], 1).detach().cpu().numpy(),
                                                        dataset=dataset), 3, normalize=False, range=(0, 255))
         writer.add_image('Groundtruth label', grid_image, global_step)

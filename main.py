@@ -6,12 +6,15 @@ from test import Infer
 
 def main():
     parser = argparse.ArgumentParser(description="PyTorch DeeplabV3Plus Training")
+    parser.add_argument('--model_name',type=str,default='deeplab',choices=['deeplab','unet'],
+                        help='deep lab need specify backbone')
+    parser.add_argument('--inchannels', type=int, default=1,help='input channles')
     parser.add_argument('--backbone', type=str, default='resnet',
                         choices=['resnet', 'xception', 'drn', 'mobilenet'],
                         help='backbone name (default: resnet)')
     parser.add_argument('--out-stride', type=int, default=16,
                         help='network output stride (default: 8)')
-    parser.add_argument('--dataset', type=str, default='pascal',
+    parser.add_argument('--dataset', type=str, default='drive',
                         choices=['pascal', 'coco', 'cityscapes','drive'],
                         help='dataset name (default: pascal)')
     parser.add_argument('--use-sbd', action='store_true', default=True,
@@ -27,7 +30,7 @@ def main():
     parser.add_argument('--freeze-bn', type=bool, default=False,
                         help='whether to freeze bn parameters (default: False)')
     parser.add_argument('--loss-type', type=str, default='ce',
-                        choices=['ce', 'focal', 'bce', 'mIou'],
+                        choices=['ce', 'focal', 'bce', 'mIou', 'dice','lovasz_b','lovasz_m'],
                         help='loss func type (default: ce)')
     # training hyper params
     parser.add_argument('--epochs', type=int, default=None, metavar='N',
@@ -79,6 +82,13 @@ def main():
     #train or test
     parser.add_argument('--mode', type=str, default='train', choices=['train','test'],
                         help='change mode')
+
+    #params of patches
+    parser.add_argument('--ph', type=int, default=48, help='patch height')
+    parser.add_argument('--pw', type=int, default=48, help='height width')
+    parser.add_argument('--sh', type=int, default=12, help='stride height')
+    parser.add_argument('--sw', type=int,default=12)
+    parser.add_argument('-n','--npatches',type=int, default=1000, help='total num of patches from 20training set')
 
     args = parser.parse_args()
     args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -135,7 +145,9 @@ def main():
         trainer.writer.close()
     else:
         infer = Infer(args)
-        infer.predict_a_patch()
+        #infer.predict_a_patch()
+        infer.eval()
+        #infer.ppp()
 
 
 if __name__ == '__main__':

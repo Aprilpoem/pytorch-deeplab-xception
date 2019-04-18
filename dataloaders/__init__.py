@@ -47,14 +47,19 @@ def make_data_loader(args, **kwargs):
         simple_transform = tfs.Compose([
             tfs.ToTensor()
         ])
-        train_ipatches, train_lpatches, valid_ipatches, valid_lpatches = retina.getdata(train_path,train_mask)
-        test_patches,test_mask_patches = retina.getdata(test_path+'images' ,test_path+'1st_manual',False)
+        pw = args.pw
+        ph = args.ph
+        npatches = args.npatches
+        train_ipatches, train_lpatches, valid_ipatches, valid_lpatches = retina.getdata(train_path,train_mask,
+                                                                                        ph,pw,npatches)
+        #test_patches,test_mask_patches = retina.getdata(test_path+'images' ,test_path+'1st_manual',False,0,0,0)
         train_set = retina.Retinal(train_ipatches, train_lpatches, transform=simple_transform)
         valid_set = retina.Retinal(valid_ipatches, valid_lpatches, transform=simple_transform)
-        test_set = retina.Retinal(test_patches,test_mask_patches,simple_transform)
+        #test_set = retina.Retinal(test_patches,test_mask_patches,simple_transform)
         train_loader = DataLoader(train_set, batch_size = args.batch_size, shuffle=True)
         valid_loader = DataLoader(valid_set, batch_size=args.batch_size, shuffle=False)
-        test_loader = DataLoader(test_set,batch_size=args.batch_size,shuffle=False)
+        #test_loader = DataLoader(test_set,batch_size=args.batch_size,shuffle=False)
+        test_loader = None
         return train_loader, valid_loader,test_loader,num_class
     else:
         raise NotImplementedError

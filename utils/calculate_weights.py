@@ -18,12 +18,18 @@ def calculate_weigths_labels(dataset, dataloader, num_classes):
         z += count_l
     tqdm_batch.close()
     total_frequency = np.sum(z)
-    class_weights = []
-    for frequency in z:
-        class_weight = 1 / (np.log(1.02 + (frequency / total_frequency)))
-        class_weights.append(class_weight)
-    ret = np.array(class_weights)
+
+    #why using 1/log(1.02+classx_sample/total) as fraction of classx
+    # class_weights = []
+    # for frequency in z:
+    #     class_weight = 1 / (np.log(1.02 + (frequency / total_frequency)))
+    #     class_weights.append(class_weight)
+    #ret = np.array(class_weights)
+
+    # class_weight = n_samples/(n*classes*np.bincount(y))
+    ret = total_frequency/(num_classes*z)
     classes_weights_path = os.path.join(Path.db_root_dir(dataset), dataset+'_classes_weights.npy')
     np.save(classes_weights_path, ret)
 
     return ret
+

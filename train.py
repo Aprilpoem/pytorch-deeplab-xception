@@ -2,6 +2,7 @@ import argparse
 import os
 import numpy as np
 from tqdm import tqdm
+import torch.optim as optim
 
 from mypath import Path
 from dataloaders import make_data_loader
@@ -14,6 +15,7 @@ from utils.lr_scheduler import LR_Scheduler
 from utils.saver import Saver
 from utils.summaries import TensorboardSummary
 from utils.metrics import Evaluator
+from models import segModel
 
 class Trainer(object):
     def __init__(self, args):
@@ -31,23 +33,11 @@ class Trainer(object):
         self.train_loader, self.val_loader, self.test_loader, self.nclass = make_data_loader(args, **kwargs)
 
         # Define network
-        # model = DeepLab(num_classes=self.nclass,
-        #                 backbone=args.backbone,
-        #                 output_stride=args.out_stride,
-        #                 sync_bn=args.sync_bn,
-        #                 freeze_bn=args.freeze_bn)
-        model = U_Net()
-        # train_params = [{'params': model.get_1x_lr_params(), 'lr': args.lr},
-        #                 {'params': model.get_10x_lr_params(), 'lr': args.lr * 10}]
+        net = segModel(self.args,self.nclass)
+        net.build_model()
+        model = net.model
+        optimizer = net.optimizer
 
-        #model = U_Net(output_ch=self.nclass)
-
-        # Define Optimizer
-        optimizer = torch.optim.SGD(model.parameters(),lr=args.lr,momentum=args.momentum,
-                                    weight_decay=args.weight_decay, nesterov=args.nesterov)
-
-
-        # Define Criterion
         # whether to use class balanced weights
         if args.use_balanced_weights:
             classes_weights_path = os.path.join(Path.db_root_dir(args.dataset), args.dataset+'_classes_weights.npy')
@@ -56,6 +46,7 @@ class Trainer(object):
             else:
                 weight = calculate_weigths_labels(args.dataset, self.train_loader, self.nclass)
             weight = torch.from_numpy(weight.astype(np.float32))
+            print('weight',weight)
         else:
             weight = None
         self.criterion = SegmentationLosses(weight=weight, cuda=args.cuda).build_loss(mode=args.loss_type)
@@ -71,7 +62,7 @@ class Trainer(object):
         if args.cuda:
             #self.model = torch.nn.DataParallel(self.model, device_ids=self.args.gpu_ids)
             self.model = torch.nn.DataParallel(self.model)
-            patch_replication_callback(self.model)
+            patch_replication_callback(self.model)#??
             self.model = self.model.cuda()
 
         # Resuming checkpoint
@@ -121,8 +112,6 @@ class Trainer(object):
             # Show 10 * 3 inference results each epoch
             if i % (num_img_tr // 10) == 0:
                 global_step = i + num_img_tr * epoch
-                #print('owo:',image.shape, target.shape, output.shape)
-                #print('qaq:',target[:3].shape)
                 self.summary.visualize_image(self.writer, self.args.dataset, image, target, output, global_step)
 
         self.writer.add_scalar('train/total_loss_epoch', train_loss, epoch)
