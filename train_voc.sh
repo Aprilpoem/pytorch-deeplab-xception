@@ -1,1 +1,3 @@
-CUDA_VISIBLE_DEVICES=0,1,2,3 python main.py --backbone resnet --lr 0.007 --workers 4 --epochs 50 --batch-size 16 --gpu-ids 0,1,2,3 --checkname deeplab-resnet --eval-interval 1 --dataset pascal
+#CUDA_VISIBLE_DEVICES=6 python main.py --backbone mobilenet --lr 0.007 --workers 2 --epochs 200 --batch-size 16 --gpu-ids 0 --checkname deeplab-mob --eval-interval 1 --dataset pascal --inchannels 3
+#CUDA_VISIBLE_DEVICES=5 python main.py --backbone mobilenet --use-balanced-weights --lr 0.007 --workers 2 --epochs 200 --batch-size 6 --gpu-ids 0 --checkname deeplab-mob --eval-interval 1 --dataset pascal --inchannels 3
+CUDA_VISIBLE_DEVICES=1,2,3 python main.py --loss-type ge-dice --backbone mobilenet --lr 0.007 --workers 6 --epochs 200 --batch-size 12 --gpu-ids 0,1,2 --checkname deeplab-mob-dice --eval-interval 1 --dataset pascal --inchannels 3

@@ -1,6 +1,7 @@
 #preprocess retina images
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
 
 def PreProc(data):
     assert(len(data.shape)==4)
@@ -68,3 +69,29 @@ def adjust_gamma(imgs, gamma=1.0):
     for i in range(imgs.shape[0]):
         new_imgs[i,0] = cv2.LUT(np.array(imgs[i,0], dtype = np.uint8), table)
     return new_imgs
+
+
+def save(img,f):
+    iii = img[0]
+    iii = np.squeeze(iii,0)
+    #iii = np.transpose(iii,(1,2,0))
+    print(iii.shape)
+    plt.imsave(f,iii,cmap='gray')
+if __name__ == '__main__':
+    from PIL import Image
+    path = '/home/wls/svmnt/data/DRIVE/training/images/21_training.tif'
+    img = Image.open(path).convert('RGB')
+    img = np.transpose(np.asarray(img),(2,0,1))
+
+    img = np.expand_dims(img,0)
+    print(img.shape)
+    train_imgs = rgb2gray(img)
+    save(train_imgs,'binary.png')
+    # my preprocessing:
+    train_imgs = dataset_normalized(train_imgs)
+    save(train_imgs, 'nor.png')
+    train_imgs = clahe_equalized(train_imgs)
+    save(train_imgs, 'equ.png')
+    train_imgs = adjust_gamma(train_imgs, 1.2)
+    save(train_imgs, 'adj_gamma.png')
+

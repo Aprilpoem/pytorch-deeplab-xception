@@ -6,7 +6,7 @@ from test import Infer
 
 def main():
     parser = argparse.ArgumentParser(description="PyTorch DeeplabV3Plus Training")
-    parser.add_argument('--model_name',type=str,default='deeplab',choices=['deeplab','unet'],
+    parser.add_argument('--model_name',type=str,default='deeplab',choices=['deeplab','unet','unet_tri'],
                         help='deep lab need specify backbone')
     parser.add_argument('--inchannels', type=int, default=1,help='input channles')
     parser.add_argument('--backbone', type=str, default='resnet',
@@ -15,10 +15,10 @@ def main():
     parser.add_argument('--out-stride', type=int, default=16,
                         help='network output stride (default: 8)')
     parser.add_argument('--dataset', type=str, default='drive',
-                        choices=['pascal', 'coco', 'cityscapes','drive'],
+                        choices=['pascal', 'coco', 'cityscapes','drive','brain'],
                         help='dataset name (default: pascal)')
-    parser.add_argument('--use-sbd', action='store_true', default=True,
-                        help='whether to use SBD dataset (default: True)')
+    parser.add_argument('--use-sbd', action='store_true', default=False,
+                        help='whether to use SBD dataset (default: False)')
     parser.add_argument('--workers', type=int, default=4,
                         metavar='N', help='dataloader threads')
     parser.add_argument('--base-size', type=int, default=513,
@@ -30,7 +30,8 @@ def main():
     parser.add_argument('--freeze-bn', type=bool, default=False,
                         help='whether to freeze bn parameters (default: False)')
     parser.add_argument('--loss-type', type=str, default='ce',
-                        choices=['ce', 'focal', 'bce', 'mIou', 'dice','lovasz_b','lovasz_m'],
+                        choices=['ce', 'focal', 'bce', 'mIou', 'dice','ge-dice',
+                                 'lovasz_b','lovasz_m','ohem','ce_dice','tri'],
                         help='loss func type (default: ce)')
     # training hyper params
     parser.add_argument('--epochs', type=int, default=None, metavar='N',
@@ -111,6 +112,7 @@ def main():
             'cityscapes': 200,
             'pascal': 50,
             'drive': 100,
+            'brain': 120,
         }
         args.epochs = epoches[args.dataset.lower()]
 
@@ -125,7 +127,8 @@ def main():
             'coco': 0.1,
             'cityscapes': 0.01,
             'pascal': 0.007,
-            'drive': 0.001
+            'drive': 0.001,
+            'brain':0.01
         }
         args.lr = lrs[args.dataset.lower()] / (4 * len(args.gpu_ids)) * args.batch_size
 
@@ -146,8 +149,10 @@ def main():
     else:
         infer = Infer(args)
         #infer.predict_a_patch()
-        infer.eval()
-        #infer.ppp()
+        #infer.eval()
+        infer.test()
+
+
 
 
 if __name__ == '__main__':

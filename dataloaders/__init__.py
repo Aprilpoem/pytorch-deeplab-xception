@@ -1,5 +1,5 @@
 #from dataloaders.datasets import cityscapes, coco, combine_dbs, pascal, sbd, retina
-from dataloaders.datasets import cityscapes, coco, combine_dbs, pascal, sbd, retina
+from dataloaders.datasets import cityscapes, coco, combine_dbs, pascal, sbd, retina, brats
 from torch.utils.data import DataLoader
 import torchvision.transforms as tfs
 
@@ -61,6 +61,16 @@ def make_data_loader(args, **kwargs):
         #test_loader = DataLoader(test_set,batch_size=args.batch_size,shuffle=False)
         test_loader = None
         return train_loader, valid_loader,test_loader,num_class
+
+    elif args.dataset == 'brain':
+        num_class= 4
+        train_set,val_set=brats.get_Brain_data()
+        train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
+        valid_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False)
+        test_loader = None
+        return train_loader, valid_loader, test_loader, num_class
+
+
     else:
         raise NotImplementedError
 

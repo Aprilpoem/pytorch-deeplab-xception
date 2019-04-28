@@ -45,6 +45,10 @@ def decode_segmap(label_mask, dataset, plot=False):
     elif dataset == 'drive':
         n_classes = 2
         label_colours = get_retina_labels()
+    elif dataset == 'brain':
+        n_classes = 4
+        label_colours = get_brain_labels()
+
     else:
         raise NotImplementedError
 
@@ -107,6 +111,8 @@ def get_cityscapes_labels():
 
 def get_retina_labels():
     return np.array([[0,0,0],[255,255,255]])
+def get_brain_labels():
+    return np.array([[0,0,0],[0, 0, 128], [128, 0, 128], [0, 128, 128]])
 
 def get_pascal_labels():
     """Load the mapping that associates pascal classes with label colors

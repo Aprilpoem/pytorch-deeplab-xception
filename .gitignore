@@ -1,8 +1,10 @@
 #ignore run
 /run/*
+/cluster/*
+/brain_re/*
 /result/*
 *.sh
-/result/*
+*.png
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -93,26 +93,47 @@ class Trainer(object):
         num_img_tr = len(self.train_loader)
         for i, sample in enumerate(tbar):
             image, target = sample['image'], sample['label']
-            #print(image.shape,target.shape)
             if self.args.cuda:
                 image, target = image.cuda(), target.cuda()
             self.scheduler(self.optimizer, i, epoch, self.best_pred)
             self.optimizer.zero_grad()
-
             output = self.model(image)
-            #print('-->:',output.shape)
 
-            loss = self.criterion(output, target)
-            loss.backward()
-            self.optimizer.step()
-            train_loss += loss.item()
+
+            if isinstance(output,tuple):
+                loss = self.criterion(output, target,epoch)
+                #print('--------')
+                #print('features:',torch.sum(torch.isnan(output[1])))
+                #print('scores:', torch.sum(torch.isnan(output[0])))
+                output = output[0]
+            else:
+                loss = self.criterion(output, target)
+            if isinstance(loss,tuple):#return many loss value
+                loss_sum = loss[0]
+                loss1 = loss[1]
+                loss2 = loss[2]
+                self.writer.add_scalars('train/indi_loss_iter', {'ce':loss1,'triplet':loss2},
+                                        i + num_img_tr * epoch)
+                self.writer.add_scalar('train/total_loss_iter', loss_sum.item(), i + num_img_tr * epoch)
+                loss_sum.backward()
+                self.optimizer.step()
+                train_loss += loss_sum.item()
+            else:
+                loss.backward()
+                self.optimizer.step()
+                train_loss += loss.item()
+                self.writer.add_scalar('train/total_loss_iter', loss.item(), i + num_img_tr * epoch)
             tbar.set_description('Train loss: %.3f' % (train_loss / (i + 1)))
-            self.writer.add_scalar('train/total_loss_iter', loss.item(), i + num_img_tr * epoch)
+
 
             # Show 10 * 3 inference results each epoch
+
             if i % (num_img_tr // 10) == 0:
                 global_step = i + num_img_tr * epoch
-                self.summary.visualize_image(self.writer, self.args.dataset, image, target, output, global_step)
+                if self.args.dataset != 'brain':
+                    self.summary.visualize_image(self.writer, self.args.dataset, image, target, output, global_step)
+                else:
+                    self.summary.visualize_image_four(self.writer, self.args.dataset, image, target, output, global_step,True)
 
         self.writer.add_scalar('train/total_loss_epoch', train_loss, epoch)
         self.writer.add_scalar('train/lr',self.optimizer.param_groups[0]['lr'],epoch)
@@ -142,16 +163,33 @@ class Trainer(object):
                 image, target = image.cuda(), target.cuda()
             with torch.no_grad():
                 output = self.model(image)
-                #print('val_out:',output.shape)
-            loss = self.criterion(output, target)
+                if isinstance(output, tuple):
+                    #to distinguish triplet loss and other loss
+                    loss = self.criterion(output, target, epoch)
+                    output = output[0]
+                else:
+                    loss = self.criterion(output, target)
+
+            #to distinguish ce_dice and other loss
+            if isinstance(loss,tuple):
+                loss = loss[0]
             test_loss += loss.item()
             tbar.set_description('Test loss: %.3f' % (test_loss / (i + 1)))
+
+
+            #show
+            num_img_tr = len(self.val_loader)
+            if i % (num_img_tr // 10) == 0:
+                global_step = i + num_img_tr * epoch
+                if self.args.dataset != 'brain':
+                    self.summary.visualize_image(self.writer, self.args.dataset, image, target, output, global_step)
+                else:
+                    self.summary.visualize_image_four(self.writer, self.args.dataset, image, target, output, global_step)
+
+            #eval
             pred = output.data.cpu().numpy()
             target = target.cpu().numpy()
             pred = np.argmax(pred, axis=1)
-            #for retina dataset, target is 4 dims
-            if target.ndim == 4:
-                target = target[:,1,:,:]
             # Add batch sample into evaluator
             self.evaluator.add_batch(target, pred)
 
@@ -172,7 +210,7 @@ class Trainer(object):
 
         new_pred = mIoU
         is_best = new_pred > self.best_pred
-        if epoch>=19 and (epoch+1)%20 == 0:
+        if epoch>=9 and (epoch+1)%10 == 0:
             if is_best:
                 self.best_pred = new_pred
             self.saver.save_checkpoint({

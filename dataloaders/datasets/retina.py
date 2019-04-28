@@ -253,7 +253,7 @@ def merge_overlap(patch_imgs,full_H,full_W,stride_h,stride_w):
     tmp_image /= tmp_sum
     result_imgs = tmp_image[:,:,:full_H,:full_W]
     #result_imgs = result_imgs.max(1)[1]
-    result_imgs = result_imgs[0,1,:,:]
+    #result_imgs = result_imgs[0,1,:,:]
     return result_imgs
 
 
